@@ -4,20 +4,26 @@ import OnboardingWizard from './components/OnboardingWizard';
 import CourseSelection from './components/CourseSelection';
 import Dashboard from './components/Dashboard';
 import PublicPortfolio from './components/PublicPortfolio';
+import { AuthProvider } from './components/AuthProvider';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/onboarding" element={<OnboardingWizard />} />
-        <Route path="/select-course" element={<CourseSelection />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/portfolio" element={<PublicPortfolio courseType="CS" />} />
-        <Route path="/portfolio/education" element={<PublicPortfolio courseType="Education" />} />
-        <Route path="/portfolio/business" element={<PublicPortfolio courseType="Business" />} />
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          
+          {/* Protected Routes */}
+          <Route path="/onboarding" element={<ProtectedRoute><OnboardingWizard /></ProtectedRoute>} />
+          <Route path="/select-course" element={<ProtectedRoute><CourseSelection /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          
+          {/* Public Views */}
+          <Route path="/u/:username" element={<PublicPortfolio />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 
