@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  LayoutDashboard, Layers, BrainCircuit, UploadCloud, Settings, GraduationCap, 
-  Eye, FileDown, GripVertical, Edit3, EyeOff, PlusCircle, Check, Trash2,
-  Plus, ExternalLink
+  Layers, BrainCircuit, UploadCloud, Settings, 
+  GripVertical, Edit3, EyeOff, PlusCircle, Check, Trash2,
+  Plus, ExternalLink, Eye, LogOut
 } from 'lucide-react';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors
@@ -68,7 +68,7 @@ const ItemEditor = ({ item, onSave, onCancel }: { item: Partial<SectionItem>, on
         <button 
           onClick={() => title.trim() && onSave({ ...item, title, description, url })} 
           disabled={!title.trim()}
-          className="px-4 py-1.5 text-xs font-semibold bg-primary text-white rounded hover:bg-primary/90 transition-colors disabled:opacity-50"
+      className="bg-primary hover:bg-primary/90 text-text-on-primary px-4 py-1.5 text-xs font-semibold rounded hover:bg-primary/90 transition-colors disabled:opacity-50"
         >
           Save
         </button>
@@ -178,12 +178,18 @@ const SortableItem = ({
 };
 
 const Dashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [sections, setSections] = useState<Section[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'sections' | 'profile'>('sections');
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState<any>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -339,10 +345,106 @@ const Dashboard: React.FC = () => {
     await supabase.from('section_items').delete().eq('id', itemId);
   };
 
+  const debouncedSearch = (query: string) => {
+    if (searchTimeout) clearTimeout(searchTimeout);
+    const timeout = setTimeout(() => fetchSchools(query), 300);
+    setSearchTimeout(timeout);
+  };
+
+  const fetchSchools = async (query: string) => {
+    setIsSearching(true);
+    try {
+      // 1. Fetch from Hipo API (Global)
+      const hipoPromise = fetch(`http://universities.hipolabs.com/search?name=${encodeURIComponent(query)}`)
+        .then(r => r.json());
+      
+      // 2. Fetch from Supabase (Local Community)
+      const supabasePromise = supabase
+        .from('universities')
+        .select('name, country')
+        .ilike('name', `%${query}%`)
+        .limit(5);
+
+      const [hipoData, { data: localData }] = await Promise.all([hipoPromise, supabasePromise]);
+
+      // Merge and deduplicate
+      const merged = [
+        ...(localData || []).map((d: any) => ({ name: d.name, country: d.country, source: 'community' })),
+        ...(hipoData || []).map((d: any) => ({ name: d.name, country: d.country, source: 'global' }))
+      ];
+      
+      const unique = Array.from(new Map(merged.map(item => [item.name.toLowerCase(), item])).values());
+      
+      setSuggestions(unique.slice(0, 5));
+      setShowSuggestions(true);
+    } catch (err) {
+      console.error('Error fetching schools:', err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSelectSchool = (schoolName: string) => {
+    if (profile) {
+      setProfile({ ...profile, school: schoolName });
+    }
+    setShowSuggestions(false);
+    setSuggestions([]);
+  };
+
+  const handleSchoolChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (profile) {
+      setProfile({ ...profile, school: value });
+    }
+    
+    if (value.length > 2) {
+      debouncedSearch(value);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingProfile(true);
+    const { error: updateError } = await supabase.from('profiles').update({
+      full_name: profile.full_name,
+      bio: profile.bio,
+      github_url: profile.github_url,
+      linkedin_url: profile.linkedin_url,
+      portfolio_url: profile.portfolio_url,
+      school: profile.school,
+      year_level: profile.year_level
+    }).eq('id', user!.id);
+    
+    if (!updateError) {
+      // Community School Logic: Try to add it if it's missing from the database
+      try {
+        if (profile.school && profile.school.trim() !== '') {
+          await supabase
+            .from('universities')
+            .insert([{ 
+              name: profile.school, 
+              country: 'Philippines',
+              created_by: user!.id 
+            }]);
+        }
+      } catch (e) {
+        // Quietly fail if already exists or other error
+      }
+      alert('Profile updated successfully!');
+    } else {
+      alert('Error updating profile: ' + updateError.message);
+    }
+    setSavingProfile(false);
+  };
+
   if (loading) return <div className="h-screen flex items-center justify-center bg-surface">Loading Dashboard...</div>;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface text-text-primary font-sans antialiased">
+    <div className="flex h-full overflow-hidden bg-surface text-text-primary font-sans antialiased">
       {/* Sidebar */}
       <aside className="w-[240px] bg-background border-r border-border flex flex-col shrink-0">
         <div className="p-6 flex flex-col items-center border-b border-border">
@@ -360,15 +462,21 @@ const Dashboard: React.FC = () => {
           <span className="mt-1 px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-medium rounded-full uppercase tracking-wider">{profile?.course || 'Enrolled'}</span>
         </div>
         
-        <nav className="flex-1 px-3 py-6 space-y-1">
-          <a className="flex items-center gap-3 px-3 py-2.5 text-text-secondary hover:bg-surface rounded-input transition-colors" href="#">
-            <LayoutDashboard size={20} />
-            <span className="text-sm font-medium">Overview</span>
-          </a>
-          <a className="flex items-center gap-3 px-3 py-2.5 bg-primary/5 text-primary rounded-input transition-colors" href="#">
+        <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
+          <button 
+            onClick={() => setActiveTab('sections')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-input transition-colors ${activeTab === 'sections' ? 'bg-primary/5 text-primary' : 'text-text-secondary hover:bg-surface'}`}
+          >
             <Layers size={20} />
-            <span className="text-sm font-semibold">Sections</span>
-          </a>
+            <span className={`text-sm ${activeTab === 'sections' ? 'font-semibold' : 'font-medium'}`}>Sections</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('profile')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-input transition-colors ${activeTab === 'profile' ? 'bg-primary/5 text-primary' : 'text-text-secondary hover:bg-surface'}`}
+          >
+            <Settings size={20} />
+            <span className={`text-sm ${activeTab === 'profile' ? 'font-semibold' : 'font-medium'}`}>Profile Settings</span>
+          </button>
           <a className="flex items-center gap-3 px-3 py-2.5 text-text-secondary hover:bg-surface rounded-input transition-colors" href="#">
             <BrainCircuit size={20} />
             <span className="text-sm font-medium">Skills</span>
@@ -377,73 +485,204 @@ const Dashboard: React.FC = () => {
             <UploadCloud size={20} />
             <span className="text-sm font-medium">Upload Files</span>
           </a>
-          <div className="pt-4 mt-auto">
-            <a className="flex items-center gap-3 px-3 py-2.5 text-text-secondary hover:bg-surface rounded-input transition-colors" href="#">
-              <Settings size={20} />
-              <span className="text-sm font-medium">Settings</span>
-            </a>
-          </div>
+          <a className="flex items-center gap-3 px-3 py-2.5 text-text-secondary hover:bg-surface rounded-input transition-colors" href="#">
+            <Settings size={20} />
+            <span className="text-sm font-medium">Extra Options</span>
+          </a>
         </nav>
+
+        <div className="p-4 border-t border-border mt-auto">
+          <button 
+            onClick={async () => {
+              await signOut();
+              navigate('/');
+            }}
+            className="w-full flex items-center gap-3 px-3 py-3 text-text-secondary hover:text-error hover:bg-error/5 rounded-input transition-colors group"
+          >
+            <LogOut size={20} className="group-hover:scale-110 transition-transform" />
+            <span className="text-sm font-bold uppercase tracking-widest text-left">Log Out</span>
+          </button>
+        </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-y-auto">
-        <header className="h-16 flex items-center justify-between px-8 bg-white/80 backdrop-blur-sm border-b border-border sticky top-0 z-10">
-          <div className="flex items-center gap-2">
-            <GraduationCap className="text-primary text-2xl" />
-            <h2 className="text-xl font-bold text-text-primary">My Portfolio</h2>
-          </div>
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate(`/u/${profile?.username}`)} className="px-4 h-9 border border-primary text-primary hover:bg-primary/5 rounded-input text-sm font-medium transition-all flex items-center gap-2">
-              <Eye size={16} />
-              Preview
-            </button>
-            <button className="px-4 h-9 border border-primary text-primary hover:bg-primary/5 rounded-input text-sm font-medium transition-all flex items-center gap-2">
-              <FileDown size={16} />
-              Export PDF
-            </button>
-          </div>
-        </header>
-
-        <div className="p-8 max-w-4xl w-full mx-auto pb-32">
-          <div className="mb-8">
-            <h3 className="text-text-primary text-lg font-semibold">Portfolio Content</h3>
-            <p className="text-text-secondary text-sm">Organize sections and add relevant projects or skills below.</p>
-          </div>
-
-          <DndContext 
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext 
-              items={sections.map(s => s.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="space-y-4">
-                {sections.map((section) => (
-                  <SortableItem 
-                    key={section.id} 
-                    section={section} 
-                    onToggleVisibility={handleToggleVisibility}
-                    onUpdateTitle={handleUpdateTitle}
-                    onDelete={handleDelete}
-                    onAddItem={handleAddItem}
-                    onUpdateItem={handleUpdateItem}
-                    onDeleteItem={handleDeleteItem}
-                  />
-                ))}
+        <div id="portfolio-content" className="p-8 max-w-4xl w-full mx-auto pb-32">
+          {activeTab === 'sections' ? (
+            <>
+              <div className="mb-8">
+                <h3 className="text-text-primary text-lg font-semibold">Portfolio Content</h3>
+                <p className="text-text-secondary text-sm">Organize sections and add relevant projects or skills below.</p>
               </div>
-            </SortableContext>
-          </DndContext>
 
-          <div className="mt-8">
-            <button onClick={handleAddSection} className="w-full h-14 border-2 border-dashed border-primary/30 hover:border-primary text-primary hover:bg-primary/5 rounded-card flex items-center justify-center gap-2 font-semibold transition-all group">
-              <PlusCircle className="group-hover:scale-110 transition-transform" />
-              Add New Section
-            </button>
-          </div>
+              <DndContext 
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext 
+                  items={sections.map(s => s.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-4">
+                    {sections.map((section) => (
+                      <SortableItem 
+                        key={section.id} 
+                        section={section} 
+                        onToggleVisibility={handleToggleVisibility}
+                        onUpdateTitle={handleUpdateTitle}
+                        onDelete={handleDelete}
+                        onAddItem={handleAddItem}
+                        onUpdateItem={handleUpdateItem}
+                        onDeleteItem={handleDeleteItem}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
 
+              <div className="mt-8">
+                <button onClick={handleAddSection} className="w-full h-14 border-2 border-dashed border-primary/30 hover:border-primary text-primary hover:bg-primary/5 rounded-card flex items-center justify-center gap-2 font-semibold transition-all group">
+                  <PlusCircle className="group-hover:scale-110 transition-transform" />
+                  Add New Section
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="bg-background border border-border rounded-card p-8 shadow-sm">
+              <h3 className="text-xl font-bold text-text-primary mb-6">Profile Settings</h3>
+              <form onSubmit={handleUpdateProfile} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">Full Name</label>
+                    <input 
+                      type="text"
+                      className="w-full bg-surface border border-border px-4 py-3 rounded-input outline-none focus:border-primary transition-all"
+                      value={profile.full_name || ''}
+                      onChange={e => setProfile({...profile, full_name: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2 relative">
+                    <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">School</label>
+                    <input 
+                      type="text"
+                      className="w-full bg-surface border border-border px-4 py-3 rounded-input outline-none focus:border-primary transition-all"
+                      value={profile.school || ''}
+                      onChange={handleSchoolChange}
+                      onFocus={() => {
+                        if (profile.school?.length > 2) {
+                          setShowSuggestions(true);
+                          fetchSchools(profile.school);
+                        }
+                      }}
+                      onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                      autoComplete="off"
+                    />
+                    
+                    {showSuggestions && (
+                      <div className="absolute z-50 left-0 right-0 mt-2 bg-background border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        {suggestions.length > 0 ? (
+                          <>
+                            <div className="px-4 py-2 bg-surface/30 text-[9px] font-bold text-text-secondary uppercase tracking-[0.2em] border-b border-border/50">
+                              Suggested Institutions
+                            </div>
+                            {suggestions.map((s: any, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => handleSelectSchool(s.name)}
+                                className="w-full text-left px-4 py-3 text-sm hover:bg-primary/5 hover:text-primary transition-colors border-b last:border-0 border-border/50 flex flex-col group"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-semibold">{s.name}</span>
+                                  {s.source === 'community' && (
+                                    <span className="text-[8px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded font-black uppercase">Community</span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-text-secondary uppercase tracking-wider">{s.country}</span>
+                              </button>
+                            ))}
+                            <div className="px-4 py-2 bg-surface/50 text-[10px] text-text-secondary uppercase tracking-widest font-bold">
+                              Not in the list? Just type it manually.
+                            </div>
+                          </>
+                        ) : (
+                          <button 
+                            type="button"
+                            onClick={() => setShowSuggestions(false)}
+                            className="w-full px-4 py-8 text-center bg-surface/20 hover:bg-primary/5 transition-colors group"
+                          >
+                            <p className="text-sm text-text-secondary mb-2 font-medium">No results matching <br /> <span className="text-text-primary font-bold italic">"{profile.school}"</span></p>
+                            <div className="h-px w-12 bg-border mx-auto mb-3 group-hover:w-20 transition-all"></div>
+                            <p className="text-[10px] text-secondary font-black uppercase tracking-[0.2em] animate-pulse group-hover:scale-105 transition-transform">Be the First to create in your instituition</p>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {isSearching && (
+                      <div className="absolute left-[calc(100%-40px)] top-[45px]">
+                        <div className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">Bio / Introduction</label>
+                  <textarea 
+                    rows={4}
+                    className="w-full bg-surface border border-border px-4 py-3 rounded-input outline-none focus:border-primary transition-all resize-none"
+                    value={profile.bio || ''}
+                    onChange={e => setProfile({...profile, bio: e.target.value})}
+                    placeholder="Tell your story..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">GitHub URL</label>
+                    <input 
+                      type="url"
+                      className="w-full bg-surface border border-border px-4 py-3 rounded-input outline-none focus:border-primary transition-all"
+                      value={profile.github_url || ''}
+                      onChange={e => setProfile({...profile, github_url: e.target.value})}
+                      placeholder="https://github.com/..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">LinkedIn URL</label>
+                    <input 
+                      type="url"
+                      className="w-full bg-surface border border-border px-4 py-3 rounded-input outline-none focus:border-primary transition-all"
+                      value={profile.linkedin_url || ''}
+                      onChange={e => setProfile({...profile, linkedin_url: e.target.value})}
+                      placeholder="https://linkedin.com/in/..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">Portfolio/Web</label>
+                    <input 
+                      type="url"
+                      className="w-full bg-surface border border-border px-4 py-3 rounded-input outline-none focus:border-primary transition-all"
+                      value={profile.portfolio_url || ''}
+                      onChange={e => setProfile({...profile, portfolio_url: e.target.value})}
+                      placeholder="https://..."
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 flex justify-end">
+                  <button 
+                    type="submit"
+                    disabled={savingProfile}
+                    className="bg-primary hover:bg-primary/90 text-text-on-primary px-8 py-3 rounded-card font-bold shadow-lg shadow-primary/20 transition-all disabled:opacity-50"
+                  >
+                    {savingProfile ? 'Saving Changes...' : 'Save Profile Changes'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
       </main>
     </div>

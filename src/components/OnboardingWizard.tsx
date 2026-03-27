@@ -41,6 +41,9 @@ const OnboardingWizard: React.FC = () => {
     year_level: '1st Year',
     username: ''
   });
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     if (user?.user_metadata?.full_name) {
@@ -49,7 +52,64 @@ const OnboardingWizard: React.FC = () => {
   }, [user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    
+    if (name === 'school') {
+      if (value.length > 2) {
+        debouncedSearch(value);
+      } else {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }
+  };
+
+  // Simple debounce implementation
+  const [searchTimeout, setSearchTimeout] = useState<any>(null);
+  const debouncedSearch = (query: string) => {
+    if (searchTimeout) clearTimeout(searchTimeout);
+    const timeout = setTimeout(() => fetchSchools(query), 300);
+    setSearchTimeout(timeout);
+  };
+
+  const fetchSchools = async (query: string) => {
+    setIsSearching(true);
+    try {
+      // 1. Fetch from Hipo API (Global)
+      const hipoPromise = fetch(`http://universities.hipolabs.com/search?name=${encodeURIComponent(query)}`)
+        .then(r => r.json());
+      
+      // 2. Fetch from Supabase (Local Community)
+      const supabasePromise = supabase
+        .from('universities')
+        .select('name, country')
+        .ilike('name', `%${query}%`)
+        .limit(5);
+
+      const [hipoData, { data: localData }] = await Promise.all([hipoPromise, supabasePromise]);
+
+      // Merge and deduplicate
+      const merged = [
+        ...(localData || []).map((d: any) => ({ name: d.name, country: d.country, source: 'community' })),
+        ...(hipoData || []).map((d: any) => ({ name: d.name, country: d.country, source: 'global' }))
+      ];
+      
+      const unique = Array.from(new Map(merged.map(item => [item.name.toLowerCase(), item])).values());
+      
+      setSuggestions(unique.slice(0, 5));
+      setShowSuggestions(true);
+    } catch (err) {
+      console.error('Error fetching schools:', err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSelectSchool = (schoolName: string) => {
+    setFormData({ ...formData, school: schoolName });
+    setShowSuggestions(false);
+    setSuggestions([]);
   };
 
   const handleNext = () => setStep(prev => prev + 1);
@@ -91,6 +151,22 @@ const OnboardingWizard: React.FC = () => {
       setError(updateError.message);
       setLoading(false);
       return;
+    }
+
+    // Community School Logic: Try to add it if it's missing from the database
+    try {
+      if (formData.school.trim() !== '') {
+        await supabase
+          .from('universities')
+          .insert([{ 
+            name: formData.school, 
+            country: 'Philippines', // Default for now as per user examples
+            created_by: user.id 
+          }])
+          .select(); //maybeSingle doesn't work well with insert if unique violation, but Supabase handles it or we can just ignore error
+      }
+    } catch (e) {
+      // Quietly fail if already exists
     }
 
     navigate('/dashboard');
@@ -141,7 +217,68 @@ const OnboardingWizard: React.FC = () => {
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Building2 className="h-5 w-5 text-text-secondary" />
                   </div>
-                  <input type="text" name="school" value={formData.school} onChange={handleChange} className="w-full pl-10 pr-4 py-3 border border-border rounded-input focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" placeholder="University of the Philippines" />
+                  <input 
+                    type="text" 
+                    name="school" 
+                    value={formData.school} 
+                    onChange={handleChange} 
+                    onFocus={() => {
+                      if (formData.school.length > 2) {
+                        setShowSuggestions(true);
+                        fetchSchools(formData.school);
+                      }
+                    }}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                    className="w-full pl-10 pr-4 py-3 border border-border rounded-input focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" 
+                    placeholder="University of the Philippines" 
+                    autoComplete="off"
+                  />
+                  
+                  {showSuggestions && (
+                    <div className="absolute z-50 left-0 right-0 mt-2 bg-background border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                      {suggestions.length > 0 ? (
+                        <>
+                          <div className="px-4 py-2 bg-surface/30 text-[9px] font-bold text-text-secondary uppercase tracking-[0.2em] border-b border-border/50">
+                            Suggested Institutions
+                          </div>
+                          {suggestions.map((s: any, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => handleSelectSchool(s.name)}
+                              className="w-full text-left px-4 py-3 text-sm hover:bg-primary/5 hover:text-primary transition-colors border-b last:border-0 border-border/50 flex flex-col group"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold">{s.name}</span>
+                                {s.source === 'community' && (
+                                  <span className="text-[8px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded font-black uppercase">Community</span>
+                                )}
+                              </div>
+                              <span className="text-[10px] text-text-secondary uppercase tracking-wider">{s.country}</span>
+                            </button>
+                          ))}
+                          <div className="px-4 py-2 bg-surface/50 text-[10px] text-text-secondary uppercase tracking-widest font-bold">
+                            Don't see your school? Keep typing to enter it manually.
+                          </div>
+                        </>
+                      ) : (
+                        <button 
+                          type="button"
+                          onClick={() => setShowSuggestions(false)}
+                          className="w-full px-4 py-8 text-center bg-surface/20 hover:bg-primary/5 transition-colors group"
+                        >
+                          <p className="text-sm text-text-secondary mb-2 font-medium">No results matching <br /> <span className="text-text-primary font-bold italic">"{formData.school}"</span></p>
+                          <div className="h-px w-12 bg-border mx-auto mb-3 group-hover:w-20 transition-all"></div>
+                          <p className="text-[10px] text-secondary font-black uppercase tracking-[0.2em] animate-pulse group-hover:scale-105 transition-transform">Be the First to create in your instituition</p>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {isSearching && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <div className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -212,11 +349,11 @@ const OnboardingWizard: React.FC = () => {
 
         <div className="mt-10 flex flex-col gap-4">
           {step < 4 ? (
-            <button onClick={handleNext} className="w-full flex justify-center items-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold py-3.5 px-6 rounded-input transition-colors text-base shadow-sm">
+            <button onClick={handleNext} className="w-full flex justify-center items-center gap-2 bg-primary hover:bg-primary/90 text-text-on-primary font-semibold py-3.5 px-6 rounded-input transition-colors text-base shadow-sm">
               Continue <ArrowRight size={18} />
             </button>
           ) : (
-            <button onClick={handleSubmit} disabled={loading} className="w-full flex justify-center items-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold py-3.5 px-6 rounded-input transition-colors text-base shadow-sm disabled:opacity-50">
+            <button onClick={handleSubmit} disabled={loading} className="w-full flex justify-center items-center gap-2 bg-primary hover:bg-primary/90 text-text-on-primary font-semibold py-3.5 px-6 rounded-input transition-colors text-base shadow-sm disabled:opacity-50">
               {loading ? 'Saving...' : 'Go to Dashboard'}
             </button>
           )}

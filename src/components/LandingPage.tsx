@@ -1,5 +1,7 @@
-import React from 'react';
-import { GraduationCap, LayoutDashboard, Share2, FileText } from 'lucide-react';
+import {
+  LayoutDashboard, Share2, FileText,
+  GraduationCap
+} from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,80 +18,68 @@ const LandingPage: React.FC = () => {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-background text-text-primary antialiased">
-      {/* Sticky Navigation Bar */}
-      <header className="sticky top-0 z-50 w-full border-b border-border bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-input bg-primary text-white">
-              <GraduationCap size={20} />
-            </div>
-            <span className="text-xl font-bold tracking-tight text-text-primary">MyCourseCard</span>
-          </div>
-          <button onClick={handleAuth} className="flex items-center justify-center gap-2 rounded-input border border-border bg-white px-5 py-2 text-sm font-semibold text-text-primary shadow-sm transition-all hover:bg-surface">
-            <svg className="h-4 w-4" viewBox="0 0 24 24">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path>
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-1 .67-2.28 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path>
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"></path>
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"></path>
-            </svg>
-            {user ? "Go to Dashboard" : "Sign in with Google"}
-          </button>
-        </div>
-      </header>
-
+    <div className="relative flex min-h-screen flex-col bg-background text-text-primary antialiased selection:bg-secondary selection:text-white">
       <main className="flex-1">
-        {/* Hero Section */}
-        <section className="relative overflow-hidden px-6 py-20 lg:py-32">
-          <div className="mx-auto max-w-4xl text-center">
-            <h1 className="text-5xl font-extrabold tracking-tight text-text-primary sm:text-7xl">
-              Your course. Your card. <br />
-              <span className="text-primary">Your story.</span>
+        {/* Hero Section (High Contrast) */}
+        <section className="relative overflow-hidden px-6 py-24 lg:py-40">
+          <div className="mx-auto max-w-5xl text-center relative">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-secondary/20 blur-[120px] -z-10 animate-pulse"></div>
+            <h1 className="text-3xl font-black tracking-tighter text-text-primary sm:text-5xl uppercase leading-[1.0]">
+              Your course. <br />
+              Your card. <br />
+              <span className="text-secondary drop-shadow-[0_0_30px_rgba(59,130,246,0.5)] italic">Your story.</span>
             </h1>
-            <p className="mt-8 text-lg leading-8 text-text-secondary sm:text-xl">
-              Build your student portfolio in minutes — tailored for your course. Showcase your projects, skills, and academic achievements in a professional, modern layout.
+            <p className="mt-6 text-sm leading-relaxed text-text-secondary sm:text-base font-medium max-w-xl mx-auto">
+              Build your student portfolio in minutes — tailored for your course. <span className="text-text-primary">Professional, high-contrast, and modern.</span>
             </p>
-            <div className="mt-10 flex items-center justify-center gap-x-6">
-              <button onClick={handleAuth} className="rounded-input bg-primary px-8 py-4 text-base font-bold text-white shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 hover:scale-[1.02]">
-                {user ? "Go to Dashboard" : "Get Started for Free"}
+            <div className="mt-10 flex items-center justify-center gap-x-8">
+              <button 
+                onClick={handleAuth} 
+                className="rounded-full bg-text-primary px-6 py-2.5 text-xs font-black text-background shadow-xl transition-all hover:bg-secondary hover:text-white hover:scale-105 active:scale-95 uppercase tracking-[0.3em] border-2 border-background"
+              >
+                {user ? "Go to Dashboard" : "Start Crafting"}
               </button>
             </div>
           </div>
-          <div className="absolute -z-10 top-0 left-1/2 -translate-x-1/2 blur-3xl opacity-10 pointer-events-none">
-            <div className="aspect-[1108/632] w-[69.25rem] bg-gradient-to-r from-primary to-[#80b1ff]" style={{ clipPath: 'polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)' }}></div>
-          </div>
         </section>
 
-        {/* Features Section */}
-        <section className="bg-surface py-24">
+        {/* Features Section (Glass Bento) */}
+        <section className="bg-surface/30 backdrop-blur-sm py-32 border-y border-white/5">
           <div className="mx-auto max-w-7xl px-6">
-            <div className="mb-16 text-center">
-              <h2 className="text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">Everything you need to stand out</h2>
+            <div className="mb-10 text-center">
+              <h2 className="text-2xl font-black uppercase tracking-tighter text-text-primary sm:text-3xl">Elevate your presence</h2>
             </div>
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-              {/* Feature 1 */}
-              <div className="flex flex-col rounded-card bg-white p-8 shadow-sm transition-shadow hover:shadow-md border border-border">
-                <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-input bg-primary/10 text-primary">
-                  <LayoutDashboard size={28} />
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-12 md:grid-rows-2 h-auto md:h-[700px]">
+              {/* Feature 1 - Premium Bento */}
+              <div className="md:col-span-8 md:row-span-1 flex flex-col justify-end rounded-[40px] bg-white/[0.03] p-12 shadow-2xl border border-white/5 group hover:border-secondary transition-all duration-500 overflow-hidden relative">
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-secondary/10 blur-3xl group-hover:scale-150 transition-transform"></div>
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[16px] bg-secondary text-white shadow-xl group-hover:rotate-6 transition-transform">
+                  <LayoutDashboard size={24} />
                 </div>
-                <h3 className="mb-3 text-xl font-bold text-text-primary">Course-Aware Sections</h3>
-                <p className="text-text-secondary leading-relaxed">Smart sections that automatically adapt to your specific degree and industry standards.</p>
+                <h3 className="mb-2 text-xl font-black text-text-primary uppercase tracking-tighter">Course-Aware</h3>
+                <p className="text-text-secondary text-sm font-medium max-w-xs">Smart sections that automatically adapt to your specific degree. Precision engineering for your career.</p>
               </div>
+              
               {/* Feature 2 */}
-              <div className="flex flex-col rounded-card bg-white p-8 shadow-sm transition-shadow hover:shadow-md border border-border">
-                <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-input bg-primary/10 text-primary">
-                  <Share2 size={28} />
-                </div>
-                <h3 className="mb-3 text-xl font-bold text-text-primary">Shareable Public Link</h3>
-                <p className="text-text-secondary leading-relaxed">A professional, unique URL to share with recruiters and on your LinkedIn profile with ease.</p>
+              <div className="md:col-span-4 md:row-span-2 flex flex-col justify-center rounded-[40px] bg-secondary p-8 border border-white/10 group hover:shadow-[0_0_100px_rgba(59,130,246,0.2)] transition-all duration-500 text-white">
+                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-[14px] bg-white/20 text-white shadow-lg group-hover:scale-110 transition-transform">
+                    <Share2 size={20} />
+                  </div>
+                  <h3 className="mb-4 text-2xl font-black uppercase tracking-tighter">Unique <br />Identity</h3>
+                  <p className="text-white/80 text-xs font-medium leading-relaxed">Your professional brand, instantly generated. High-performance design built into every pixel.</p>
               </div>
+
               {/* Feature 3 */}
-              <div className="flex flex-col rounded-card bg-white p-8 shadow-sm transition-shadow hover:shadow-md border border-border">
-                <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-input bg-primary/10 text-primary">
-                  <FileText size={28} />
+              <div className="md:col-span-8 md:row-span-1 flex flex-col justify-center rounded-[40px] bg-surface p-10 border border-white/5 group hover:border-success transition-all duration-500">
+                <div className="flex items-center gap-8">
+                    <div className="shrink-0 flex h-14 w-14 items-center justify-center rounded-[18px] bg-success text-white shadow-lg group-hover:-translate-y-2 transition-transform">
+                      <FileText size={28} />
+                    </div>
+                    <div>
+                      <h3 className="mb-2 text-xl font-black text-text-primary uppercase tracking-tighter">One-Click PDF</h3>
+                      <p className="text-text-secondary text-sm font-medium">Instantly transform your dynamic portfolio into a professional resume. Job-ready in a heartbeat.</p>
+                    </div>
                 </div>
-                <h3 className="mb-3 text-xl font-bold text-text-primary">PDF Resume Export</h3>
-                <p className="text-text-secondary leading-relaxed">Convert your digital portfolio into a beautifully formatted PDF resume with just one click.</p>
               </div>
             </div>
           </div>
@@ -122,21 +112,25 @@ const LandingPage: React.FC = () => {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border bg-white py-12">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
-            <div className="text-center md:text-left">
-              <div className="flex items-center justify-center gap-2 md:justify-start">
-                <div className="flex h-6 w-6 items-center justify-center rounded bg-primary text-white">
-                  <GraduationCap size={14} />
+      {/* Premium Footer */}
+      <footer className="border-t border-white/5 bg-background py-20 relative overflow-hidden">
+        <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-secondary/20 to-transparent"></div>
+        <div className="mx-auto max-w-7xl px-6 relative">
+          <div className="flex flex-col items-center justify-between gap-10 md:flex-row">
+            <div className="text-center md:text-left space-y-4">
+              <div className="flex items-center justify-center gap-3 md:justify-start">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-text-primary text-background shadow-lg">
+                  <GraduationCap size={18} />
                 </div>
-                <span className="text-lg font-bold text-text-primary">MyCourseCard</span>
+                <span className="text-2xl font-black tracking-tighter text-text-primary uppercase italic">MyCourseCard</span>
               </div>
-              <p className="mt-2 text-sm text-text-secondary">The smartest way to build your student career.</p>
+              <p className="text-slate-500 font-medium max-w-sm">The high-performance platform for student architects, engineers, and creators.</p>
             </div>
-            <div className="text-sm text-text-secondary">
-              © {new Date().getFullYear()} MyCourseCard. All rights reserved.
+            <div className="flex flex-col items-center md:items-end gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-text-secondary/40">
+                <span className="hover:text-text-primary transition-colors cursor-pointer">Privacy</span>
+                <span className="hover:text-text-primary transition-colors cursor-pointer">Terms</span>
+                <span className="hover:text-text-primary transition-colors cursor-pointer">Contact</span>
+              <span>© {new Date().getFullYear()} MyCourseCard • State of the Art</span>
             </div>
           </div>
         </div>

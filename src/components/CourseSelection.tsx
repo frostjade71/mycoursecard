@@ -62,7 +62,7 @@ const CourseSelection: React.FC = () => {
                     onChange={() => setSelectedCourse(course.id)}
                   />
                   <div className="flex items-center gap-5">
-                    <div className={`flex-shrink-0 p-3 rounded-input ${isSelected ? 'bg-primary text-white' : 'bg-surface text-text-secondary'}`}>
+                    <div className={`flex-shrink-0 p-3 rounded-input ${isSelected ? 'bg-primary text-text-on-primary' : 'bg-surface text-text-secondary'}`}>
                       <Icon size={28} />
                     </div>
                     <div>
@@ -79,7 +79,7 @@ const CourseSelection: React.FC = () => {
                   <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
                     isSelected ? 'border-primary bg-primary' : 'border-border'
                   }`}>
-                    {isSelected && <ArrowRight size={14} className="text-white" />}
+                    {isSelected && <ArrowRight size={14} className="text-text-on-primary" />}
                   </div>
                 </label>
               );
@@ -87,7 +87,7 @@ const CourseSelection: React.FC = () => {
           </div>
 
           <div className="flex flex-col gap-4">
-            <button className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 px-6 rounded-input transition-all transform hover:scale-[1.01] active:scale-[0.99] text-lg shadow-lg shadow-primary/20">
+            <button className="w-full bg-primary hover:bg-primary/90 text-text-on-primary font-bold py-4 px-6 rounded-input transition-all transform hover:scale-[1.01] active:scale-[0.99] text-lg shadow-lg shadow-primary/20">
               Continue to Dashboard
             </button>
             <p className="text-center text-sm text-text-secondary">
